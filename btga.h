@@ -18,6 +18,7 @@ struct individual {
 
 // スタックの保存用リスト
 struct stock {
+  int treeType;
   char stack[8];
   struct stock *next;
 }; typedef struct stock Stock;
@@ -32,10 +33,11 @@ int checkExistance(Stock **stock, char *stack);
 int checkSelected(int *selected, int select, int num);
 
 // stock
-void add2Stock(Stock **stock, char *stack);
+void add2Stock(Stock **stock, char *stack, int treeType);
 void freeStock(Stock **stock);
 void printStock(Stock **stock);
 void printStockNum(Stock **stock);
+void printStockFomula(Stock **stock);
 
 // fitness
 void indivFitness(Indiv *indiv, Stock **stock);
@@ -70,7 +72,7 @@ void initPopul(Indiv *popul, int populNum) {
 }
 
 // 指定されたstackがStockにあるか確認
-// あれば0なけいまたはStockが空ならば1を返す
+// あれば0 ないまたはStockが空ならば1を返す
 int checkExistance(Stock **stock, char *stack) {
   if (*stock == NULL) {
     return 1;
@@ -85,9 +87,10 @@ int checkExistance(Stock **stock, char *stack) {
 }
 
 // Stockに新しいstackを追加
-void add2Stock(Stock **stock, char *stack) {
+void add2Stock(Stock **stock, char *stack, int treeType) {
   Stock *s = (Stock *)malloc(sizeof(Stock));
   strcpy(s->stack, stack);
+  s->treeType = treeType;
   s->next = NULL;
   if (*stock == NULL) {
     *stock = s;
@@ -132,6 +135,20 @@ void printStockNum(Stock **stock) {
   printf("%d\n", count);
 }
 
+void printStockFomula(Stock **stock) {
+  char fomula[16];
+  if (*stock == NULL) {
+    return;
+  }
+  while ((*stock)->next != NULL) {
+    stack2fomula((*stock)->treeType, (*stock)->stack, fomula);
+    printf("%s, ", fomula);
+    stock = &((*stock)->next);
+  }
+  stack2fomula((*stock)->treeType, (*stock)->stack, fomula);
+  printf("%s\n", fomula);
+}
+
 // 1つの個体の適応度の計算
 // 個体の木を小数に変換して10.0に近いほど適応度が高い
 // 10.0丁度だとStockに木をstackに変換したものが存在するか確認
@@ -147,7 +164,7 @@ void indivFitness(Indiv *indiv, Stock **stock) {
     tree2float(&(indiv->t), &(indiv->fitness));
     indiv->fitness = -fabs(10.0 - indiv->fitness);
     if (indiv->fitness == 0) {
-      add2Stock(stock, stack);
+      add2Stock(stock, stack, indiv->t.treeType);
       indiv->fitness = -1000;
     }
   }

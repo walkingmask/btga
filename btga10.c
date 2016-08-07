@@ -61,9 +61,9 @@ int main(int argc, char *argv[]) {
     sleep(1);
   }
 
-  // 見つかった全ての10パズルを出力
+  // 見つかった全ての10パズルを式で出力
   printf("result -------------------------\n");
-  printStock(&stock);
+  printStockFomula(&stock);
 
   return 0;
 }
