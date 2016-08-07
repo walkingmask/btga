@@ -18,6 +18,8 @@
 #define POPULN 100          // 集団の個体数
 #define PARENTSN 10*2       // 選択する親の数
 #define CHILDRENN PARENTSN  // 生成される子の最大数
+#define CROSSP 80           // 交叉確率
+#define MUTATEP 1           // 突然変異確率
 #define MAXGEN 10000        // 最大世代交代数
 
 int main(int argc, char *argv[]) {
@@ -44,9 +46,9 @@ int main(int argc, char *argv[]) {
     // 親の選択
     selectParents(popul, parents, POPULN, PARENTSN);
     // 交叉
-    childrenNum = crossing(parents, children, PARENTSN, 80);
+    childrenNum = crossing(parents, children, PARENTSN, CROSSP);
     // 突然変異
-    mutation(children, childrenNum, 1);
+    mutation(children, childrenNum, MUTATEP);
     // 新個体の適応度の計算
     populFitness(children, childrenNum, &stock);
     // 淘汰
