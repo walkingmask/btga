@@ -1,6 +1,8 @@
 # btga10
 
 
+binary tree genetic algorythm for 10 puzzle
+
 二分木を使った遺伝的アルゴリズムで10パズルを生成するプログラム
 
 
