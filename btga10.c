@@ -45,12 +45,12 @@ int main(int argc, char *argv[]) {
     selectParents(popul, parents, POPULN, PARENTSN);
     // 交叉
     childrenNum = crossing(parents, children, PARENTSN, 80);
+    // 突然変異
+    mutation(children, childrenNum, 1);
     // 新個体の適応度の計算
     populFitness(children, childrenNum, &stock);
     // 淘汰
     selection(popul, children, POPULN, childrenNum);
-    // 突然変異
-    mutation(popul, POPULN, 1);
     // 中間結果の出力
     printf("gen:%05d --------------------\n", gen);
     printf("fitness ave: ");printPopulFitnessAve(popul, POPULN);
