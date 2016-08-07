@@ -3,24 +3,17 @@
  * 2016/07/29(Fri)
  * Kazuki Nagamine (145725A)
  * binary tree genetic algorythm
- *
- * 初期集団の生成->適応度の計算->スタックの保存->エリートの保存->交叉&突然変異->適応度の計算->...
- * 終了判定は...? -> とりあえず回数指定
- * http://www.obitko.com/tutorials/genetic-algorithms/japanese/recommendations.php
  */
 
-
 /* Header */
-#include <math.h>
-#include <string.h>
 #include "btc.h"
 
-
 /* Struct */
-// 個体の定義
+// 個体
 struct individual {
-  Tree t; // 染色体
-  float fitness; // 適応度
+  Tree t;
+  Node nodes[7];
+  float fitness;
 }; typedef struct individual Indiv;
 
 // スタックの保存用リスト
@@ -30,23 +23,54 @@ struct stock {
 }; typedef struct stock Stock;
 
 /* Prototype */
+// init 
+void initIndiv(Indiv *indiv);
+void initPopul(Indiv *popul, int populNum);
 
+// check
+int checkExistance(Stock **stock, char *stack);
+int checkSelected(int *selected, int select, int num);
+
+// stock
+void add2Stock(Stock **stock, char *stack);
+void freeStock(Stock **stock);
+void printStock(Stock **stock);
+void printStockNum(Stock **stock);
+
+// fitness
+void indivFitness(Indiv *indiv, Stock **stock);
+void populFitness(Indiv *popul, int populNum, Stock **stock);
+void printIndivFitness(Indiv *indiv);
+void printPopulFitness(Indiv *popul, int populNum);
+void printPopulFitnessAve(Indiv *popul, int populNum);
+void printPopulFitnessMax(Indiv *popul, int populNum);
+void printPopulFitnessMin(Indiv *popul, int populNum);
+
+// copy
+void copyIndiv(Indiv *from, Indiv *to);
+
+// main
+void selectParents(Indiv *popul, Indiv *parents, int populNum, int parentsNum);
+int crossing(Indiv *parents, Indiv *children, int parentsNum, int crossp);
+void selection(Indiv *popul, Indiv *children, int populNum, int childrenNum);
+void mutation(Indiv *popul, int populNum, int mutatep);
 
 /* Function */
-// 初期個体の生成
+// 1つの個体の初期化
 void initIndiv(Indiv *indiv) {
-  randMake(&(indiv->t));
+  randMakeTree(&(indiv->t), indiv->nodes);
 }
 
 // 初期集団の生成
-void initPopul(Indiv *popul, int num) {
+void initPopul(Indiv *popul, int populNum) {
   int i;
-  for (i=0; i<num; i++) {
+  for (i=0; i<populNum; i++) {
     initIndiv(&popul[i]);
   }
 }
 
-// スタックを保存されたスタックと比較
+// 指定されたstackがStockにあるか確認
+// あれば0なけいまたはStockが空ならば1を返す
 int checkExistance(Stock **stock, char *stack) {
   if (*stock == NULL) {
     return 1;
@@ -60,13 +84,11 @@ int checkExistance(Stock **stock, char *stack) {
   return 1;
 }
 
-// スタックの保存
+// Stockに新しいstackを追加
 void add2Stock(Stock **stock, char *stack) {
-  // 新stockの生成
   Stock *s = (Stock *)malloc(sizeof(Stock));
   strcpy(s->stack, stack);
   s->next = NULL;
-  // リストへ追加
   if (*stock == NULL) {
     *stock = s;
   }
@@ -76,7 +98,7 @@ void add2Stock(Stock **stock, char *stack) {
   }
 }
 
-// スタック保存リストの解放
+// Stockのメモリを解放する
 void freeStock(Stock **stock) {
   if ((*stock)->next != NULL) {
     freeStock(&(*stock)->next);
@@ -84,7 +106,7 @@ void freeStock(Stock **stock) {
   free(*stock);
 }
 
-// スタック保存リストの出力
+// Stockに含まれるstackを全て出力
 void printStock(Stock **stock) {
   if (*stock == NULL) {
     return;
@@ -96,7 +118,25 @@ void printStock(Stock **stock) {
   printf("%s\n", (*stock)->stack);
 }
 
-// 個体の適応度の計算
+// Stockに含まれるstackの数を出力
+void printStockNum(Stock **stock) {
+  if (*stock == NULL) {
+    printf("0\n");
+    return;
+  }
+  int count = 0;
+  while ((*stock)->next != NULL) {
+    count++;
+    stock = &((*stock)->next);
+  }
+  printf("%d\n", count);
+}
+
+// 1つの個体の適応度の計算
+// 個体の木を小数に変換して10.0に近いほど適応度が高い
+// 10.0丁度だとStockに木をstackに変換したものが存在するか確認
+// なければStockに追加し，その個体の適応度を大きく下げる
+// あれば単純に適応度を大きく下げる
 void indivFitness(Indiv *indiv, Stock **stock) {
   char stack[8];
   tree2stack(&(indiv->t), stack);
@@ -106,7 +146,6 @@ void indivFitness(Indiv *indiv, Stock **stock) {
   else {
     tree2float(&(indiv->t), &(indiv->fitness));
     indiv->fitness = -fabs(10.0 - indiv->fitness);
-    // 適応度最大の個体の保存
     if (indiv->fitness == 0) {
       add2Stock(stock, stack);
       indiv->fitness = -1000;
@@ -114,7 +153,7 @@ void indivFitness(Indiv *indiv, Stock **stock) {
   }
 }
 
-// 集団の個体すべての適応度の計算
+// 集団の全ての個体の適応度の計算
 void populFitness(Indiv *popul, int populNum, Stock **stock) {
   int i;
   for (i=0; i<populNum; i++) {
@@ -122,21 +161,59 @@ void populFitness(Indiv *popul, int populNum, Stock **stock) {
   }
 }
 
-// 個体の適応度の出力
+// 1つの個体の適応度の出力
 void printIndivFitness(Indiv *indiv) {
   printf("%f\n", indiv->fitness);
 }
 
-// 集団の個体すべての適応度の出力
-void printPopulFitness(Indiv *popul, int num) {
+// 集団の全個体の適応度の出力
+void printPopulFitness(Indiv *popul, int populNum) {
   int i;
-  for (i=0; i<num; i++) {
+  for (i=0; i<populNum; i++) {
     printIndivFitness(&popul[i]);
   }
 }
 
-// すでに選択したかどうかの判断
-int isSelected(int *selected, int select, int num) {
+// 集団の平均適応度を出力
+void printPopulFitnessAve(Indiv *popul, int populNum) {
+  float ave;
+  int i;
+  for (ave=.0, i=0; i<populNum; i++) {
+    ave += popul[i].fitness;
+  }
+  printf("%f\n", ave/populNum);
+}
+
+// 集団の最大適応度を出力
+void printPopulFitnessMax(Indiv *popul, int populNum) {
+  float max;
+  int i;
+  max = popul[0].fitness;
+  for (i=1; i<populNum; i++) {
+    max = (popul[i].fitness > max)? popul[i].fitness : max;
+  }
+  printf("%f\n", max);
+}
+
+// 集団の最小適応度を出力
+void printPopulFitnessMin(Indiv *popul, int populNum) {
+  float min;
+  int i;
+  min = popul[0].fitness;
+  for (i=1; i<populNum; i++) {
+    min = (popul[i].fitness < min)? popul[i].fitness : min;
+  }
+  printf("%f\n", min);
+}
+
+// 個体をコピーする
+void copyIndiv(Indiv *from, Indiv *to) {
+  copyTree(&(from->t), &(to->t), to->nodes);
+  to->fitness = from->fitness;
+}
+
+// 指定された値selectがすでに選択された値の配列selectedのnumまでに存在するか確認
+int checkSelected(int *selected, int select, int num) {
   int i;
   for (i=0; i<num; i++) {
     if (select == selected[i]) {
@@ -146,68 +223,55 @@ int isSelected(int *selected, int select, int num) {
   return 0;
 }
 
-// 親の選択
-void selectParent(Indiv *popul, Indiv *parent, int populNum, int parentNum) {
-  int i, j, selected[parentNum];
-  for(i=0; i<parentNum; i++) {
+// 集団から親となる個体の選択
+void selectParents(Indiv *popul, Indiv *parents, int populNum, int parentsNum) {
+  int i, j, selected[parentsNum];
+  for(i=0; i<parentsNum; i++) {
     while (1) {
       j = uRand(populNum-1);
-      if (isSelected(selected, j, i) == 0) {
+      if (checkSelected(selected, j, i) == 0) {
         break;
       }
     }
-    parent[i] = popul[j];
+    copyIndiv(&(popul[j]), &(parents[i]));
   }
-} 
-
-// 交叉確率
-int isCross(int p) {
-  if (uRand(100-1) < p) {
-    return 1;
-  }
-  return 0;
 }
 
-// 交叉 生成された子の数を返す
-int crossing(Indiv *parent, Indiv *children, int parentNum, int crossp, Tree *t1, Tree *t2) {
+// 親の集団から交叉確率crosspに従って交叉を行い子の集団を生成する
+// 生成された子の数を返す
+int crossing(Indiv *parents, Indiv *children, int parentsNum, int crossp) {
   int i, j;
-  for (i=0, j=0; i<parentNum; i+=2) {
-    if (isCross(crossp) == 1) {
-      *t1 = parent[i].t;
-      *t2 = parent[i+1].t;
-      randSwap(t1, t2);
-      children[j].t = *t1;
-      children[j+1].t = *t2;
+  for (i=0, j=0; i<parentsNum; i+=2) {
+    if (uRand(100)-1 < crossp) {
+      copyIndiv( &(parents[i]), &(children[j]) );
+      copyIndiv( &(parents[i+1]), &(children[j+1]) );
+      randSwap( &(children[j].t), &(children[j+1].t) );
       j+=2;
     }
   }
   return j;
 }
 
-// 淘汰 エリート選択
+// 淘汰
+// 元の集団で最も適応度の低い個体を線形探索し子の個体と比較して適応度の高い方を元の集団に残す
 void selection(Indiv *popul, Indiv *children, int populNum, int childrenNum) {
   int i, j, k;
-  Indiv temp;
 
   for (i=0; i<childrenNum; i++) {
-    // 元の集団で適応度の最も低い個体を線形探索
     for (k=0, j=1; j<populNum; j++) {
       if (popul[j].fitness < popul[k].fitness) {
         k = j;
       }
     }
-    // 探索した個体と子を比較交換
     if (children[i].fitness > popul[k].fitness) {
-      temp = popul[k];
-      popul[k] = children[i];
-      children[i] = temp;
+      copyIndiv(&(children[i]), &(popul[k]));
     }
   }
 }
 
-// 突然変異
+// 突然変異確率mutepに従って突然変異を起こす
 void mutation(Indiv *popul, int populNum, int mutatep) {
-  if (uRand(100-1) < mutatep) {
+  if (uRand(100)-1 < mutatep) {
     randChangeNodeValue(&(popul[uRand(populNum-1)].t));
   }
 }
